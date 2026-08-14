@@ -4,119 +4,152 @@
 
 **Lookify** is a full-stack AI fashion photo editor SaaS built with Next.js, YouCam API, and InsForge.
 
-- **Repo:** `/home/linux/Desktop/lookify`
+- **Repo:** `/home/linux/Desktop/lookify` · GitHub `ANAMASGARD/Lookify`
 - **Stack:** Next.js 16.3.1, React 19, Tailwind CSS 4, GSAP 3.15, Motion 13, shadcn/ui (partial)
 - **Backend:** InsForge (Postgres BaaS, auth, storage)
 - **Positioning:** AI fashion photo editor — virtual try-on, makeup transfer, beauty tools for brands and creators
+- **Last updated:** 2026-08-14 — auth, landing CTAs, InsForge Lookify-AI, rounded-button rule
 
 ---
 
-## InsForge backend setup (2026-08-14)
+## How to run
 
-### Authentication & project
+```bash
+cd /home/linux/Desktop/lookify
+npm install          # first time
+npm run dev          # http://localhost:3000
+npm run build
+npm run start
+```
 
-- Logged into InsForge CLI with user API key
-- Created cloud project **lookify** in **Personal Org**
-- Linked the **repo root** to the project (not a nested subdirectory)
-- Installed InsForge agent skills globally: `insforge`, `insforge-cli`, `insforge-debug`, `insforge-integrations`, `find-skills`
+Restart dev server after changing `.env.local`. Hard refresh (`Ctrl+Shift+R`) if landing looks stale.
 
-### Project credentials
+**Required `.env.local` keys:** `NEXT_PUBLIC_INSFORGE_URL`, `NEXT_PUBLIC_INSFORGE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `INSFORGE_API_KEY` (see `.env.example`).
+
+---
+
+## InsForge backend (Lookify-AI — current)
 
 | Field | Value |
 |-------|-------|
-| Project ID | `468921e5-0c2a-43b6-8f11-bc8f00627f1f` |
-| App key | `avu8nnia` |
-| Region | `us-east` |
-| API base | `https://avu8nnia.us-east.insforge.app` |
-| Dashboard | https://insforge.dev/dashboard/project/468921e5-0c2a-43b6-8f11-bc8f00627f1f |
+| Project | **Lookify-AI** |
+| Project ID | `f9c04c7b-2ecd-49ac-9698-b28a847859be` |
+| App key | `wze4g6x6` |
+| Region | `ap-southeast` |
+| API base | `https://wze4g6x6.ap-southeast.insforge.app` |
+| Dashboard | https://insforge.dev/dashboard/project/f9c04c7b-2ecd-49ac-9698-b28a847859be |
 
+**Deprecated:** earlier `lookify` project in Personal Org (`468921e5-0c2a-43b6-8f11-bc8f00627f1f`, us-east).
+
+### Setup done (2026-08-14)
+
+- Logged into InsForge CLI; linked repo via `npx @insforge/cli link --project-id f9c04c7b-...`
+- Installed skills globally: `insforge`, `insforge-cli`, `insforge-debug`, `insforge-integrations`, `find-skills`
+- Migration applied: `migrations/*_create-users-table.sql` — `public.users` with RLS
+- `insforge.toml` — OAuth redirect URLs for localhost
+- `@insforge/sdk@latest` installed
 - CLI config: `.insforge/project.json` (gitignored)
-- App env: `.env.local` with `NEXT_PUBLIC_INSFORGE_URL`, `NEXT_PUBLIC_INSFORGE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`
-- Template env: `.env.example`
+- Helpers: `lib/insforge/server.ts`, `lib/insforge/config.ts`, `proxy.ts` (session refresh)
 
-### App integration
+### Backend state
 
-- Installed `@insforge/sdk@latest`
-- Added `lib/insforge.ts` with `createInsforgeServerClient()` and `getInsforgeServerClient()` helpers
-- Updated `AGENTS.md` with InsForge guidance block
-- Added `.insforge/` to `.gitignore`
-
-### Cleanup
-
-- Removed accidentally created nested `lookify/` template directory from initial `create` run (note: a nested `lookify/` auth template folder may still exist in repo from later scaffolding)
-- Root project retained landing page and shadcn setup
-
-### Backend state (at setup time)
-
-- **Auth:** Google + GitHub OAuth enabled; email verification required
-- **Database:** No custom tables yet
-- **Storage:** No buckets yet
-- **Functions:** None deployed
-- **Realtime:** No channels configured
-- Backend health check passed; Next.js build verified
+- **Auth:** Google OAuth + email/password; email verification (6-digit code) required for email signup
+- **Database:** `public.users` table (profile sync on first signup)
+- **Storage / functions / realtime:** not configured yet
 
 ---
 
-## Landing page work (2026-08-14)
+## Auth implementation (2026-08-14)
 
-### Evolution
+### Routes
 
-1. **Static hero (v1)** — Full-viewport Adam Roberts–style portfolio hero adapted for Lookify (`HeroLanding`): video background, four-column meta grid, pixel font (basis33), mobile menu, TRY DEMO button, tech stack chips (YouCam, Next.js, InsForge).
-2. **Scroll-driven landing (v2, current)** — Replaced main page with prmpt-style scroll experience (`ScrollLanding`). Previous static hero moved to bottom as `HeroFooter`.
-3. **Wordmark fix** — Replaced broken SVG path logo (rendered as garbled “NPIPDB”) with clean text wordmark: **lookify** + circled **R**.
+| Route | Purpose |
+|-------|---------|
+| `/auth/sign-in` | Email/password + Google OAuth |
+| `/auth/sign-up` | Register + 6-digit verification + Google |
+| `/api/auth/google` | **GET** — starts Google OAuth (307; sets PKCE cookie) |
+| `/api/auth/callback` | OAuth callback → `/dashboard` |
+| `/api/auth/refresh` | Session refresh |
+| `/dashboard` | Protected “coming soon” page |
 
-### Current landing flow (`/` → `ScrollLanding`)
-
-| Phase | Behavior |
-|-------|----------|
-| **Hero (0–100vh scroll)** | Dual CloudFront videos, cursor-scrub on desktop (dead zone at center), auto-alternate on mobile. Fixed UI with `mix-blend-exclusion`. |
-| **Gallery** | Black panel slides up (GSAP ScrollTrigger). 10 archive images in scattered grid; cards scale in/out via RAF. |
-| **Outro** | White overlay fades in; product info slides up; pill **view** CTA scales in; footer fades in. |
-| **Footer hero** | Full-viewport Lookify hero section (`HeroFooter`) after all scroll content. |
-
-### Landing components
+### Key files
 
 | File | Purpose |
 |------|---------|
-| `components/landing/scroll-landing.tsx` | Main scroll orchestrator (GSAP + RAF + video logic) |
-| `components/landing/hero-footer.tsx` | Previous static Lookify hero at page bottom |
-| `components/landing/lookify-wordmark.tsx` | Top-left **lookify** wordmark + ® |
-| `components/landing/custom-cursor.tsx` | Desktop exclusion-blend custom cursor |
-| `components/landing/logo.tsx` | Geometric “L” mark (used in footer hero) |
-| `lib/landing/constants.ts` | Video URLs, gallery images, circle symbols |
-| `lib/landing/gallery-layout.ts` | Scattered grid layout algorithm |
+| `lib/auth/actions.ts` | Server actions: signIn, signUp, verifyEmail, signOut |
+| `lib/auth/ensure-user-profile.ts` | Upserts `public.users` on first signup (admin client + `INSFORGE_API_KEY`) |
+| `lib/insforge/server.ts` | `createInsForgeServerClient()` |
+| `components/auth/sign-in-form.tsx`, `sign-up-form.tsx` | Auth forms |
+| `components/auth/auth-shell.tsx` | Shared auth page layout |
+| `components/auth/google-oauth-link.tsx` | Plain `<a href="/api/auth/google">` — **not** Next `<Link>` |
+| `app/api/auth/google/route.ts` | OAuth init route (replaced broken Server Action approach) |
+| `proxy.ts` | InsForge `updateSession()` (replaces deprecated middleware pattern) |
 
-### Landing copy & branding
+### Auth behavior
 
-- **Wordmark:** lookify (lowercase) + circled R
-- **Caption:** Full-stack AI fashion photo editor SaaS powered by YouCam API
-- **Product block:** ARCHIVE COLLECTION / "LOOKIFY" / $97,33
-- **Nav:** ABOUT · hamburger · [ CART ]
-- **Footer (outro):** LOOKIFY (R) 2026 · PRIVACY POLICY
-- **Page title:** Lookify — AI Fashion Photo Editor SaaS
+- **Google OAuth:** working — use full navigation via `<a>` or `GoogleOAuthLink` (RSC prefetch on `<Link>` breaks 307 redirect)
+- **Email signup:** requires SMTP for verification codes; Google is reliable path until SMTP configured
+- **Landing signed-in state:** `app/page.tsx` checks auth → `ScrollLanding isAuthenticated={...}`
+  - Signed out: **Sign in** + **Sign up**
+  - Signed in: **Dashboard** only → `/dashboard`
 
-### Video & gallery assets
+### Errors fixed this session
 
-**Hero videos (CloudFront):**
-- Left: `.../hf_20260625_154433_532a85d3-dabf-4265-b8bd-19ac6af31842.mp4`
-- Right: `.../hf_20260625_154401_a664f076-b971-4557-8728-40ef9ea4c49b.mp4`
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| `oauth_failed` | Server Action for OAuth init | `GET /api/auth/google` route handler |
+| RSC prefetch on Google button | `<Link>` to redirect route | `GoogleOAuthLink` with plain `<a>` |
+| Landing buttons broken/invisible | Inside `mix-blend-exclusion` | Auth CTAs outside blend layer |
+| Missing hero portrait | Videos hidden until both loaded | Show on first load + 4s fallback |
+| Rounded corners not showing | `--radius: 0` in globals.css | Explicit `rounded-[12px]` on buttons |
 
-**Footer hero video:**
-- `.../hf_20260725_114042_d2ed2a89-f2fa-449b-9609-da456344257b.mp4`
+---
 
-**Gallery:** 10 images via `images.higgs.ai` CDN (fashion archive PNGs)
+## Landing page
 
-### Technical details
+### Current flow (`/` → `ScrollLanding`)
 
-- **Fonts:** Inter (body/footer), Inter Tight 500 (landing UI), basis33 (`.font-pixel` in footer hero)
-- **Animations:** GSAP ScrollTrigger (panel slide), Motion (entry stagger), RAF (card scale + outro)
-- **Video:** `object-contain` on white bg so portrait is fully visible; panel starts at `translateY(100vh)` so hero isn’t covered on load
-- **Dependencies added:** `gsap`, `@gsap/react`, `motion`
-- **Config:** `next.config.ts` remote patterns for `images.higgs.ai` and CloudFront
+| Phase | Behavior |
+|-------|----------|
+| **Hero (0–100vh)** | Dual CloudFront videos, cursor-scrub desktop, auto-alternate mobile. Decorative UI uses `mix-blend-exclusion`. Auth buttons **outside** blend layer. |
+| **Gallery** | Black panel slides up (GSAP). 10 archive images; RAF card scale. |
+| **Outro** | White overlay, product info, pill **view**, footer fade. |
+| **Footer hero** | `HeroFooter` — pixel font, FEATURES/EDITOR nav, auth CTAs, TRY DEMO. |
 
-### Removed / superseded
+### Landing auth CTAs
 
-- `components/landing/hero-landing.tsx` — deleted; logic split into `ScrollLanding` + `HeroFooter`
+- **Component:** `components/landing/landing-auth-links.tsx`
+- Retro pixel pills: black border, offset shadow, `min-h-10` / `sm:min-h-11`
+- Used in scroll hero header and footer nav (via `ScrollLanding` + `HeroFooter`)
+- Hamburger + `[ CART ]` remain inside `mix-blend-exclusion`
+
+### Key landing files
+
+| File | Purpose |
+|------|---------|
+| `components/landing/scroll-landing.tsx` | Main scroll orchestrator |
+| `components/landing/hero-footer.tsx` | Bottom studio hero |
+| `components/landing/landing-auth-links.tsx` | Sign in / Sign up / Dashboard pills |
+| `components/landing/lookify-wordmark.tsx` | **lookify** + circled R |
+| `lib/landing/constants.ts` | Video + gallery URLs |
+
+### Removed
+
+- `components/landing/hero-landing.tsx` — do not recreate
+
+---
+
+## UI rule — ALL buttons must have rounded corners
+
+**Why:** `app/globals.css` sets `:root { --radius: 0 }`. Theme tokens `--radius-lg`, `--radius-2xl`, etc. all resolve to **0px**. Classes like `rounded-lg` / `rounded-2xl` do nothing.
+
+**Rule (agents must follow):**
+
+- Use **explicit** arbitrary radius: `rounded-[12px]`, `sm:rounded-[14px]`, or `rounded-full` for pills
+- Do **not** rely on `rounded-lg`, `rounded-xl`, `rounded-2xl`, or shadcn defaults alone
+- Reference: `components/landing/landing-auth-links.tsx`, `components/ui/button.tsx` (`rounded-[12px]`), `components/auth/google-oauth-link.tsx`
+
+Also documented in `AGENTS.md` under **UI rule — rounded corners on ALL buttons**.
 
 ---
 
@@ -124,54 +157,51 @@
 
 ```
 app/
-  page.tsx          → ScrollLanding
-  layout.tsx        → Inter + Inter Tight + basis33
-  globals.css       → shadcn theme, .font-pixel, .bp-card
+  page.tsx              → auth check → ScrollLanding
+  auth/sign-in, sign-up
+  dashboard/page.tsx    → protected coming soon
+  api/auth/google, callback, refresh
+  layout.tsx, globals.css
 
 components/
-  landing/          → scroll landing + footer hero
-  ui/button.tsx     → shadcn button
+  landing/              → scroll landing + auth CTAs + footer hero
+  auth/                 → forms, shell, google-oauth-link
+  ui/button.tsx         → shadcn button (explicit rounded-[12px])
 
 lib/
-  insforge.ts       → InsForge server client
-  landing/          → constants + gallery layout
-  utils.ts
+  auth/                 → actions, ensure-user-profile
+  insforge/             → server client, config
+  landing/              → constants, gallery layout
 
-hooks/use-mobile.ts
-public/             → beauty, fashion, makeup, AI editing sample assets
+proxy.ts                → InsForge session refresh
+migrations/             → users table
 ```
 
 ---
 
 ## Not yet implemented
 
-- Auth UI wired into main app flow (nested `lookify/` template has sign-in/sign-up scaffold)
-- Database schema (users, edits, looks, sessions)
+- Dashboard features beyond “coming soon” shell
+- YouCam API integration (copy only on landing)
+- Editor routes; FEATURES / TRY DEMO / view pill — mostly `href="#"` placeholders
 - Storage buckets for image uploads
-- YouCam API integration (landing only references it in copy)
 - Edge functions for AI processing
-- Protected routes / editor dashboard
-- Nav links, TRY DEMO, view CTA — not routed yet (href="#")
 
 ---
 
 ## Key conventions
 
-- Database inserts use array format: `insert([{ ... }])`
-- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies
-- Storage uploads: persist both `url` and `key`
-- Use `insforge-cli` skill for backend/infra; `insforge` skill for app code
+- **Standing rule:** After every session, update `AGENTS.md` + this file
+- Database inserts: `insert([{ ... }])`
+- Users: `auth.users(id)`; RLS with `auth.uid()`
+- Storage: persist both `url` and `key`
+- Skills: `insforge-cli` for backend; `insforge` for app SDK
 - Never commit `.env.local`, `.insforge/project.json`, or API keys
-- Landing overlays use `mix-blend-exclusion` and `pointer-events-none`
-- Prefer Inter Tight 500 for landing UI typography
+- Landing overlays: `mix-blend-exclusion` on decorative UI, **not** on interactive auth buttons
+- **All buttons:** visible rounded corners via explicit px radius (see UI rule above)
 
 ---
 
-## How to run
+## Agent briefing
 
-```bash
-npm run dev    # http://localhost:3000
-npm run build
-```
-
-Hard refresh if landing looks stale after changes.
+`CLAUDE.md` only `@AGENTS.md` — keep `AGENTS.md` complete; use this file for session history and decisions.

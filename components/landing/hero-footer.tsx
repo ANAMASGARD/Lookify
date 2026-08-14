@@ -1,6 +1,8 @@
 "use client";
 
 import { Play } from "lucide-react";
+import Link from "next/link";
+import { LandingAuthLinks } from "./landing-auth-links";
 import { LookifyLogo } from "./logo";
 
 const FEATURES = [
@@ -15,7 +17,11 @@ const FEATURES = [
 const VIDEO_SRC =
   "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260725_114042_d2ed2a89-f2fa-449b-9609-da456344257b.mp4";
 
-export function HeroFooter() {
+export function HeroFooter({
+  isAuthenticated = false,
+}: {
+  isAuthenticated?: boolean;
+}) {
   return (
     <section
       id="lookify-footer-hero"
@@ -34,19 +40,21 @@ export function HeroFooter() {
       <div className="relative z-10 flex h-full flex-col px-5 sm:px-6 md:px-10 lg:px-14">
         <header className="flex items-center justify-between py-6">
           <LookifyLogo />
-          <nav className="hidden items-center gap-8 text-sm tracking-wide md:flex">
-            {["FEATURES", "EDITOR", "GALLERY", "API", "DOCS", "START"].map(
-              (link) => (
-                <a
-                  key={link}
-                  href="#"
-                  className="transition-opacity hover:opacity-70"
-                >
-                  {link}
-                </a>
-              ),
-            )}
+          <nav className="hidden items-center gap-6 text-sm tracking-wide md:flex lg:gap-8">
+            {["FEATURES", "EDITOR", "GALLERY", "API", "DOCS"].map((link) => (
+              <a
+                key={link}
+                href="#"
+                className="transition-opacity hover:opacity-70"
+              >
+                {link}
+              </a>
+            ))}
+            <LandingAuthLinks variant="dark" isAuthenticated={isAuthenticated} />
           </nav>
+          <div className="md:hidden">
+            <LandingAuthLinks variant="dark" isAuthenticated={isAuthenticated} />
+          </div>
         </header>
 
         <div className="mt-4 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4 lg:gap-8">
@@ -124,7 +132,7 @@ export function HeroFooter() {
             <div className="flex flex-col justify-end gap-4 sm:gap-6">
               <button
                 type="button"
-                className="flex items-center gap-3 self-start border border-white/30 bg-white/5 px-6 py-3 backdrop-blur-sm transition-colors hover:bg-white/10"
+                className="flex items-center gap-3 self-start rounded-[12px] border border-white/30 bg-white/5 px-6 py-3 backdrop-blur-sm transition-colors hover:bg-white/10"
               >
                 <Play size={14} fill="white" />
                 <span className="text-sm tracking-wider">TRY DEMO</span>
@@ -154,12 +162,12 @@ export function HeroFooter() {
           <footer className="mt-4 grid grid-cols-1 gap-2 pt-4 sm:mt-5 sm:grid-cols-2 sm:gap-4">
             <p className="text-xs text-white/60">
               Open to demos, integrations, and collaboration.{" "}
-              <a
-                href="#"
+              <Link
+                href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}
                 className="text-red-500 transition-colors hover:text-red-400"
               >
-                Start editing
-              </a>
+                {isAuthenticated ? "Open dashboard" : "Start editing"}
+              </Link>
             </p>
             <p className="text-xs text-white/60 sm:text-right">
               30+ AI tools • Virtual try-on • Beauty &amp; fashion

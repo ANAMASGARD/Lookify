@@ -13,6 +13,7 @@ import {
 } from "react";
 import { CustomCursor } from "./custom-cursor";
 import { HeroFooter } from "./hero-footer";
+import { LandingAuthLinks } from "./landing-auth-links";
 import { LookifyWordmark } from "./lookify-wordmark";
 import {
   CIRCLE_SYMBOLS,
@@ -51,7 +52,11 @@ function prefersReducedMotionCheck(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function ScrollLanding() {
+export function ScrollLanding({
+  isAuthenticated = false,
+}: {
+  isAuthenticated?: boolean;
+}) {
   const spacerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -67,6 +72,7 @@ export function ScrollLanding() {
 
   const [cols, setCols] = useState(4);
   const [videosLoaded, setVideosLoaded] = useState({ left: false, right: false });
+  const [heroVisible, setHeroVisible] = useState(false);
   const [circleSymbol, setCircleSymbol] = useState("$");
   const [isTouch, setIsTouch] = useState(false);
 
@@ -79,6 +85,16 @@ export function ScrollLanding() {
   const grid = useMemo(() => buildGrid(layoutCells, cols), [layoutCells, cols]);
 
   const bothVideosLoaded = videosLoaded.left && videosLoaded.right;
+
+  const markVideoLoaded = useCallback((side: "left" | "right") => {
+    setVideosLoaded((current) => {
+      const next = { ...current, [side]: true };
+      if (next.left || next.right) {
+        setHeroVisible(true);
+      }
+      return next;
+    });
+  }, []);
 
   const getOutroOffset = useCallback(() => {
     return window.innerWidth >= 1024 ? 166 : 132;
@@ -121,6 +137,17 @@ export function ScrollLanding() {
     updateCols();
     window.addEventListener("resize", updateCols);
     return () => window.removeEventListener("resize", updateCols);
+  }, []);
+
+  useEffect(() => {
+    leftVideoRef.current?.load();
+    rightVideoRef.current?.load();
+
+    const fallbackTimer = window.setTimeout(() => {
+      setHeroVisible(true);
+    }, 4000);
+
+    return () => window.clearTimeout(fallbackTimer);
   }, []);
 
   useLayoutEffect(() => {
@@ -365,7 +392,7 @@ export function ScrollLanding() {
           id="main-canvas"
           ref={canvasRef}
           className={`pointer-events-none fixed z-0 overflow-hidden bg-white transition-opacity duration-300 ease-in-out ${
-            bothVideosLoaded ? "opacity-100" : "opacity-0"
+            heroVisible ? "opacity-100" : "opacity-0"
           } max-lg:left-0 max-lg:top-[220px] max-lg:h-[calc(100vh-220px)] max-lg:w-screen lg:inset-0 lg:h-full lg:w-full`}
         >
           <video
@@ -376,8 +403,10 @@ export function ScrollLanding() {
             className="absolute inset-0 hidden h-full w-full object-contain object-center"
             onLoadedData={() => {
               if (leftVideoRef.current) primeVideo(leftVideoRef.current);
-              setVideosLoaded((v) => ({ ...v, left: true }));
+              markVideoLoaded("left");
             }}
+            onCanPlay={() => markVideoLoaded("left")}
+            onError={() => markVideoLoaded("left")}
           >
             <source src={VIDEO_LEFT} type="video/mp4" />
           </video>
@@ -389,8 +418,10 @@ export function ScrollLanding() {
             className="absolute inset-0 block h-full w-full object-contain object-center"
             onLoadedData={() => {
               if (rightVideoRef.current) primeVideo(rightVideoRef.current);
-              setVideosLoaded((v) => ({ ...v, right: true }));
+              markVideoLoaded("right");
             }}
+            onCanPlay={() => markVideoLoaded("right")}
+            onError={() => markVideoLoaded("right")}
           >
             <source src={VIDEO_RIGHT} type="video/mp4" />
           </video>
@@ -474,30 +505,34 @@ export function ScrollLanding() {
         </motion.p>
 
         <motion.header
-          className="pointer-events-none fixed z-20 flex mix-blend-exclusion items-center justify-end lg:justify-between right-4 top-4 sm:right-8 sm:top-8 h-[30px] w-auto lg:w-[330px]"
+          className="fixed z-30 flex items-center justify-between left-4 right-4 top-4 sm:left-8 sm:right-8 sm:top-8"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...entryTransition, delay: 0.15 }}
         >
-          <span className="hidden font-medium uppercase text-white text-[15px] tracking-[-0.04em] lg:inline">
+          <span className="pointer-events-none hidden font-medium uppercase text-white mix-blend-exclusion text-[15px] tracking-[-0.04em] lg:inline">
             ABOUT
           </span>
-          <div className="flex items-center gap-5 lg:gap-[50px]">
-            <svg
-              viewBox="0 0 40 40"
-              className="h-6 w-6 sm:h-[30px] sm:w-[30px]"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M0 14H40M0 26H40"
-                stroke="white"
-                strokeWidth="2.5"
-              />
-            </svg>
-            <span className="font-medium text-white text-[13px] sm:text-[15px] tracking-[-0.04em]">
-              [ CART ]
-            </span>
+
+          <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
+            <LandingAuthLinks variant="hero" isAuthenticated={isAuthenticated} />
+            <div className="flex shrink-0 items-center gap-4 sm:gap-5 mix-blend-exclusion">
+              <svg
+                viewBox="0 0 40 40"
+                className="pointer-events-none h-6 w-6 sm:h-[30px] sm:w-[30px]"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M0 14H40M0 26H40"
+                  stroke="white"
+                  strokeWidth="2.5"
+                />
+              </svg>
+              <span className="pointer-events-none whitespace-nowrap font-medium text-white text-[13px] sm:text-[15px] tracking-[-0.04em]">
+                [ CART ]
+              </span>
+            </div>
           </div>
         </motion.header>
 
@@ -566,7 +601,7 @@ export function ScrollLanding() {
         </footer>
       </div>
 
-      <HeroFooter />
+      <HeroFooter isAuthenticated={isAuthenticated} />
     </>
   );
 }
