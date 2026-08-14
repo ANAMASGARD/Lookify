@@ -104,6 +104,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), "Inter", sans-serif;
     font-feature-settings: "kern" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -119,5 +120,19 @@
   h6 {
     @apply font-head font-semibold;
     letter-spacing: -0.025em;
+  }
+}
+
+.font-pixel {
+  font-family: "basis33", monospace;
+}
+
+.bp-card {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-card {
+    will-change: auto;
   }
 }
